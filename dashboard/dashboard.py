@@ -1,5 +1,6 @@
 """
 Dashboard Analisis E-Commerce Olist
+Proyek Data Science — Sertifikasi BNSP Ilmuwan Data
 Nama  : Chamid Bahrul Ulum
 Email : ulumlab@gmail.com
 
@@ -52,6 +53,7 @@ warnings.filterwarnings("ignore")
 # ============================================================
 st.set_page_config(
     page_title="Olist Data Science Dashboard",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -298,10 +300,33 @@ with st.sidebar:
     if data_ok:
         min_d = df["order_purchase_timestamp"].min().date()
         max_d = df["order_purchase_timestamp"].max().date()
-        date_range = st.date_input("Rentang Waktu", value=(min_d, max_d), min_value=min_d, max_value=max_d)
+        try:
+            date_range = st.date_input("Rentang Waktu", value=(min_d, max_d), min_value=min_d, max_value=max_d)
+            if len(date_range) != 2:
+                date_range = (min_d, max_d)
+        except Exception:
+            date_range = (min_d, max_d)
 
-        all_states = ["Semua"] + sorted(df["customer_state"].dropna().unique().tolist())
-        sel_state  = st.selectbox("Negara Bagian", all_states)
+        state_names = {
+            "AC": "AC — Acre",              "AL": "AL — Alagoas",
+            "AM": "AM — Amazonas",          "AP": "AP — Amapá",
+            "BA": "BA — Bahia",             "CE": "CE — Ceará",
+            "DF": "DF — Distrito Federal",  "ES": "ES — Espírito Santo",
+            "GO": "GO — Goiás",             "MA": "MA — Maranhão",
+            "MG": "MG — Minas Gerais",      "MS": "MS — Mato Grosso do Sul",
+            "MT": "MT — Mato Grosso",       "PA": "PA — Pará",
+            "PB": "PB — Paraíba",           "PE": "PE — Pernambuco",
+            "PI": "PI — Piauí",             "PR": "PR — Paraná",
+            "RJ": "RJ — Rio de Janeiro",    "RN": "RN — Rio Grande do Norte",
+            "RO": "RO — Rondônia",          "RR": "RR — Roraima",
+            "RS": "RS — Rio Grande do Sul", "SC": "SC — Santa Catarina",
+            "SE": "SE — Sergipe",           "SP": "SP — São Paulo",
+            "TO": "TO — Tocantins",
+        }
+        raw_states  = sorted(df["customer_state"].dropna().unique().tolist())
+        state_opts  = ["Semua"] + [state_names.get(s, s) for s in raw_states]
+        sel_display = st.selectbox("Negara Bagian", state_opts)
+        sel_state   = "Semua" if sel_display == "Semua" else sel_display[:2]
 
         df_f = df[
             (df["order_purchase_timestamp"].dt.date >= date_range[0]) &
@@ -324,12 +349,13 @@ with st.sidebar:
         ("07", "Random Forest",                 "#7-analisis-lanjutan-5-prediksi-sentimen-ulasan-random-forest"),
         ("08", "Time Series",                   "#8-analisis-lanjutan-6-time-series-decomposition-revenue"),
         ("09", "Korelasi & Feature Importance", "#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
-        ("10", "Kesimpulan & Rekomendasi",      "#10-kesimpulan-dan-rekomendasi"),
+
     ]
     for num, label, anchor in nav_items:
         st.markdown(f"**{num}** &nbsp; [{label}]({anchor})", unsafe_allow_html=True)
 
     st.divider()
+    st.caption("Sertifikasi BNSP Ilmuwan Data")
     st.caption("Chamid Bahrul Ulum")
     st.caption("Dataset: Olist Brazilian E-Commerce")
 
@@ -1005,72 +1031,16 @@ with st.expander("Lihat Insight Korelasi"):
 - `n_items` memiliki korelasi negatif **terkuat ({n_items_corr:+.3f})** — pesanan multi-item lebih rentan ulasan negatif
 - `total_freight` = {freight_corr:+.3f} — ongkos kirim tinggi mempengaruhi kepuasan namun tidak dominan
 - `total_payment` = {payment_corr:+.3f} — nilai transaksi besar tidak otomatis berarti kepuasan lebih rendah
+- `purchase_month` = **+0.034** — satu-satunya variabel dengan korelasi **positif** terhadap review score
 - **Rekomendasi**: fokus pada standar pengemasan pesanan multi-item dan batas ongkos kirim untuk kategori bermasalah
     """)
 
 st.divider()
 
-# ============================================================
-# SECTION 10 — KESIMPULAN & REKOMENDASI
-# ============================================================
-st.subheader("10. Kesimpulan dan Rekomendasi")
-
-col_con1, col_con2 = st.columns(2)
-
-with col_con1:
-    st.markdown("**Kesimpulan Pertanyaan 1 — Revenue**")
-    st.success("""
-Revenue platform Olist tumbuh dari BRL 127.546 (Januari 2017) hingga BRL 1.153.528
-(November 2017) — hampir 9x lipat dalam 10 bulan, terkonfirmasi sebagai dampak
-Black Friday oleh analisis time series. Rata-rata revenue bulanan BRL 768.794.
-Kategori `health_beauty` (BRL 1,4M), `watches_gifts` (BRL 1,26M), dan
-`bed_bath_table` (BRL 1,22M) mendominasi kontribusi revenue.
-    """)
-
-    st.markdown("**Kesimpulan Pertanyaan 2 — Kepuasan**")
-    st.warning("""
-Rata-rata kepuasan 4,156/5,0 dengan 59,2% pelanggan memberikan skor sempurna.
-Kategori `bed_bath_table` (4,010) dan `telephony` (4,056) memiliki kepuasan
-terendah. Analisis korelasi mengkonfirmasi `n_items` (-0.107) sebagai faktor
-negatif terkuat terhadap kepuasan — pesanan multi-item lebih rentan ulasan negatif.
-    """)
-
-    st.markdown("**Kesimpulan Machine Learning**")
-    st.info("""
-K-Means (K=2, Silhouette=0.3306) memisahkan 14 kategori berskala besar dari
-43 kategori berskala kecil. Random Forest (ROC-AUC=0.6111, CV=0.6172) berhasil
-membangun model prediksi sentimen yang stabil. Time Series decomposition
-mengkonfirmasi pertumbuhan organik dan efek Black Friday secara kuantitatif.
-    """)
-
-with col_con2:
-    st.markdown("**Rekomendasi Action Item**")
-    st.info("""
-1. **Maksimalkan Black Friday**: Revenue November 2017 lebih dari 50% di atas
-   rata-rata bulanan. Siapkan stok dan infrastruktur 2 bulan sebelumnya.
-
-2. **Perbaiki Kepuasan `bed_bath_table` & `telephony`**: Audit seller, SLA
-   pengiriman khusus produk besar, tambahkan program proteksi produk.
-
-3. **Win-Back Segmen At Risk**: 22.079 pelanggan (23,7%) tidak aktif rata-rata
-   393 hari. Kampanye email personal dengan voucher diskon untuk reaktivasi.
-
-4. **Program Loyalitas New Customers**: Rata-rata frequency 1,00 menunjukkan
-   hampir tidak ada repeat purchase. Cashback pembelian kedua dapat efektif.
-
-5. **Ekspansi Geografis**: SP+RJ+MG = 66% total order. Rekrut seller lokal
-   di BA, GO, PA yang underserved namun berpopulasi besar.
-
-6. **Early Warning System RF**: Gunakan model Random Forest untuk
-   identifikasi order berisiko ulasan negatif sebelum pengiriman selesai.
-
-7. **Standar Multi-Item Packaging**: n_items adalah faktor korelasi negatif
-   terkuat (-0.107). Tingkatkan standar pengemasan pesanan multi-item.
-    """)
-
 # Footer
 st.divider()
 st.caption(
     "Dashboard Analisis Data Science E-Commerce Olist | "
+    "Sertifikasi BNSP Ilmuwan Data | "
     "Chamid Bahrul Ulum | ulumlab@gmail.com"
 )
