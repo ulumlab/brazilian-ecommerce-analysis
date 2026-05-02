@@ -276,7 +276,7 @@ def adaptive_divisor(max_val):
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    st.markdown("### 📊 Olist Dashboard")
+    st.markdown("### Olist Dashboard")
     st.markdown("**Analisis E-Commerce Brazil**")
     st.divider()
 
@@ -313,9 +313,14 @@ with st.sidebar:
         ("09", "Korelasi & Feature Importance", "#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
         ("10", "Kesimpulan & Rekomendasi",      "#10-kesimpulan-dan-rekomendasi"),
     ]
-    nav_html = """
+    # Build semua HTML dalam satu string agar tidak ada fragment yang ter-render sebagai teks
+    nav_links_html = "\n".join(
+        f'<a class="nav-item" href="{anchor}"><span class="nav-num">{num}</span>{label}</a>'
+        for num, label, anchor in nav_items
+    )
+    nav_html = f"""
     <style>
-    .nav-item {
+    .nav-item {{
         display: flex;
         align-items: center;
         gap: 10px;
@@ -327,14 +332,14 @@ with st.sidebar:
         color: inherit;
         transition: background 0.15s;
         border-left: 3px solid transparent;
-    }
-    .nav-item:hover {
+    }}
+    .nav-item:hover {{
         background: rgba(46, 134, 171, 0.10);
         border-left: 3px solid #2E86AB;
         color: #2E86AB;
         text-decoration: none;
-    }
-    .nav-num {
+    }}
+    .nav-num {{
         font-size: 10px;
         font-weight: 600;
         color: #2E86AB;
@@ -345,11 +350,10 @@ with st.sidebar:
         text-align: center;
         flex-shrink: 0;
         letter-spacing: 0.02em;
-    }
+    }}
     </style>
+    <div>{nav_links_html}</div>
     """
-    for num, label, anchor in nav_items:
-        nav_html += f'<a class="nav-item" href="{anchor}"><span class="nav-num">{num}</span>{label}</a>\n'
     st.markdown(nav_html, unsafe_allow_html=True)
 
     st.divider()
