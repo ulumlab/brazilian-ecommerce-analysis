@@ -1,7 +1,7 @@
 """
 Dashboard Analisis E-Commerce Olist
-Proyek Data Science — Sertifikasi BNSP Ilmuwan Data
-Nama  : Chamid Bahrul Ulum
+Proyek Data Science
+Oleh  : Chamid Bahrul Ulum
 Email : ulumlab@gmail.com
 
 Cara menjalankan:
@@ -300,24 +300,25 @@ with st.sidebar:
 
     st.divider()
 
-    # Navigasi section
+    # Navigasi section — anchor links ke setiap section
+    # Streamlit otomatis membuat anchor dari teks heading (lowercase, spasi -> -)
     st.subheader("Navigasi")
-    sections = [
-        "1. Ringkasan Performa",
-        "2. Revenue & Kategori",
-        "3. Kepuasan Pelanggan",
-        "4. RFM Segmentasi",
-        "5. Geospatial",
-        "6. K-Means Clustering",
-        "7. Random Forest",
-        "8. Time Series",
-        "9. Korelasi & Feature Importance",
+    nav_links = [
+        ("1. Ringkasan Performa",          "#1-ringkasan-performa-bisnis"),
+        ("2. Revenue & Kategori",           "#2-pertanyaan-1-tren-revenue-dan-kategori-produk-teratas"),
+        ("3. Kepuasan Pelanggan",           "#3-pertanyaan-2-kepuasan-pelanggan-per-kategori-produk"),
+        ("4. RFM Segmentasi",               "#4-analisis-lanjutan-1-rfm-segmentasi-pelanggan"),
+        ("5. Geospatial",                   "#5-analisis-lanjutan-2-geospatial-distribusi-order-di-brazil"),
+        ("6. K-Means Clustering",           "#6-analisis-lanjutan-4-k-means-clustering-kategori-produk"),
+        ("7. Random Forest",                "#7-analisis-lanjutan-5-prediksi-sentimen-ulasan-random-forest"),
+        ("8. Time Series",                  "#8-analisis-lanjutan-6-time-series-decomposition-revenue"),
+        ("9. Korelasi & Feature Importance","#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
+        ("10. Kesimpulan",                  "#10-kesimpulan-dan-rekomendasi"),
     ]
-    for s in sections:
-        st.markdown(f"• {s}")
+    for label, anchor in nav_links:
+        st.markdown(f"• [{label}]({anchor})")
 
     st.divider()
-    st.caption("Sertifikasi BNSP Ilmuwan Data")
     st.caption("Chamid Bahrul Ulum")
     st.caption("Dataset: Olist Brazilian E-Commerce")
 
@@ -1048,6 +1049,5 @@ with col_con2:
 st.divider()
 st.caption(
     "Dashboard Analisis Data Science E-Commerce Olist | "
-    "Sertifikasi BNSP Ilmuwan Data | "
     "Chamid Bahrul Ulum | ulumlab@gmail.com"
 )
