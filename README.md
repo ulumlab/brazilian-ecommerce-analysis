@@ -106,4 +106,4 @@ Setelah perintah di atas dijalankan, Streamlit akan memberikan URL lokal (biasan
 
 ## Link Dashboard (Streamlit Cloud)
 
-Lihat file `url.txt` untuk URL dashboard yang sudah di-deploy ke Streamlit Cloud.
+[Live Dashboard](https://ulumlab-olist-dashboard.streamlit.app)
