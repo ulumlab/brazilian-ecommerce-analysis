@@ -52,7 +52,6 @@ warnings.filterwarnings("ignore")
 # ============================================================
 st.set_page_config(
     page_title="Olist Data Science Dashboard",
-    page_icon=":bar_chart:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -174,13 +173,25 @@ def compute_kmeans(df):
         .reset_index()
         .dropna()
     )
-    cat = cat[cat["n_orders"] >= 50].copy()
+    # Turunkan threshold jika data terlalu sedikit setelah filter
+    threshold = 50
+    while threshold > 5 and len(cat[cat["n_orders"] >= threshold]) < 3:
+        threshold -= 10
+    cat = cat[cat["n_orders"] >= max(1, threshold)].copy()
+
+    # Butuh minimal 3 kategori untuk clustering
+    if len(cat) < 3:
+        return None, None, None, None, None, None, None, None
 
     feats   = ["total_revenue", "n_orders", "avg_score", "avg_freight", "avg_items"]
     scaler  = StandardScaler()
     X       = scaler.fit_transform(cat[feats])
 
-    k_range    = range(2, 11)
+    # Batasi K maksimum berdasarkan jumlah sampel
+    max_k   = min(10, len(cat) - 1)
+    if max_k < 2:
+        return None, None, None, None, None, None, None, None
+    k_range    = range(2, max_k + 1)
     inertias   = []
     sil_scores = []
     for k in k_range:
@@ -203,6 +214,8 @@ def compute_kmeans(df):
 @st.cache_data
 def compute_rf(df):
     df_clf = df.dropna(subset=["review_score"]).copy()
+    if len(df_clf) < 200:
+        return None, None, None, None, None, None, None, None, None, None
     df_clf["sentiment"] = (df_clf["review_score"] >= 4).astype(int)
 
     top20  = df_clf["product_category"].value_counts().nlargest(20).index.tolist()
@@ -299,7 +312,7 @@ with st.sidebar:
 
     st.divider()
 
-    # Navigasi section — styled anchor links
+    # Navigasi section
     st.subheader("Navigasi")
     nav_items = [
         ("01", "Ringkasan Performa",           "#1-ringkasan-performa-bisnis"),
@@ -313,48 +326,8 @@ with st.sidebar:
         ("09", "Korelasi & Feature Importance", "#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
         ("10", "Kesimpulan & Rekomendasi",      "#10-kesimpulan-dan-rekomendasi"),
     ]
-    # Build semua HTML dalam satu string agar tidak ada fragment yang ter-render sebagai teks
-    nav_links_html = "\n".join(
-        f'<a class="nav-item" href="{anchor}"><span class="nav-num">{num}</span>{label}</a>'
-        for num, label, anchor in nav_items
-    )
-    nav_html = f"""
-    <style>
-    .nav-item {{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 6px 8px;
-        margin: 2px 0;
-        border-radius: 6px;
-        text-decoration: none;
-        font-size: 12.5px;
-        color: inherit;
-        transition: background 0.15s;
-        border-left: 3px solid transparent;
-    }}
-    .nav-item:hover {{
-        background: rgba(46, 134, 171, 0.10);
-        border-left: 3px solid #2E86AB;
-        color: #2E86AB;
-        text-decoration: none;
-    }}
-    .nav-num {{
-        font-size: 10px;
-        font-weight: 600;
-        color: #2E86AB;
-        background: rgba(46, 134, 171, 0.12);
-        border-radius: 4px;
-        padding: 1px 5px;
-        min-width: 22px;
-        text-align: center;
-        flex-shrink: 0;
-        letter-spacing: 0.02em;
-    }}
-    </style>
-    <div>{nav_links_html}</div>
-    """
-    st.markdown(nav_html, unsafe_allow_html=True)
+    for num, label, anchor in nav_items:
+        st.markdown(f"**{num}** &nbsp; [{label}]({anchor})", unsafe_allow_html=True)
 
     st.divider()
     st.caption("Chamid Bahrul Ulum")
@@ -705,102 +678,108 @@ st.subheader("6. Analisis Lanjutan 4: K-Means Clustering Kategori Produk")
 with st.spinner("Menjalankan K-Means clustering..."):
     cat_km, X_km, best_k, final_sil, sil_vals, k_list, inertias, sil_scores = compute_kmeans(df_f)
 
-# Metrik ringkasan
-st.markdown(f"**K Optimal = {best_k} | Silhouette Score = {final_sil:.4f}**")
-col_km1, col_km2 = st.columns(2)
+if cat_km is None:
+    st.warning(
+        "Data pada filter ini terlalu sedikit untuk K-Means Clustering "
+        "(minimal 3 kategori diperlukan). Gunakan filter **Semua** negara bagian."
+    )
+else:
+    st.markdown(f"**K Optimal = {best_k} | Silhouette Score = {final_sil:.4f}**")
+    col_km1, col_km2 = st.columns(2)
 
-with col_km1:
-    # Elbow + Silhouette
-    fig_e, axes_e = plt.subplots(1, 2, figsize=(11, 4))
-    fig_e.suptitle("Penentuan K Optimal", fontsize=11, fontweight="bold")
+    with col_km1:
+        # Elbow + Silhouette
+        fig_e, axes_e = plt.subplots(1, 2, figsize=(11, 4))
+        fig_e.suptitle("Penentuan K Optimal", fontsize=11, fontweight="bold")
 
-    # Elbow
-    axes_e[0].plot(k_list, inertias, marker="o", color=COLOR_PRIMARY, lw=2,
-                   markersize=5, markerfacecolor="white", markeredgewidth=2)
-    axes_e[0].set_xlabel("K", fontsize=9); axes_e[0].set_ylabel("Inertia", fontsize=9)
-    axes_e[0].set_title("Elbow Method", fontsize=10, fontweight="bold")
-    axes_e[0].set_xticks(k_list); axes_e[0].set_ylim(bottom=0)
-    axes_e[0].spines["top"].set_visible(False); axes_e[0].spines["right"].set_visible(False)
+        # Elbow
+        axes_e[0].plot(k_list, inertias, marker="o", color=COLOR_PRIMARY, lw=2,
+                       markersize=5, markerfacecolor="white", markeredgewidth=2)
+        axes_e[0].set_xlabel("K", fontsize=9); axes_e[0].set_ylabel("Inertia", fontsize=9)
+        axes_e[0].set_title("Elbow Method", fontsize=10, fontweight="bold")
+        axes_e[0].set_xticks(k_list); axes_e[0].set_ylim(bottom=0)
+        axes_e[0].spines["top"].set_visible(False); axes_e[0].spines["right"].set_visible(False)
 
-    # Silhouette bar
-    bcols_k = [COLOR_ACCENT if k == best_k else COLOR_NEUTRAL for k in k_list]
-    bars_k  = axes_e[1].bar(k_list, sil_scores, color=bcols_k, edgecolor="white", width=0.6)
-    for bar, sc in zip(bars_k, sil_scores):
-        axes_e[1].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.003,
-                       f"{sc:.3f}", ha="center", fontsize=7.5)
-    axes_e[1].set_xlabel("K", fontsize=9); axes_e[1].set_ylabel("Silhouette Score", fontsize=9)
-    axes_e[1].set_title(f"Silhouette Score (K={best_k} terbaik)", fontsize=10, fontweight="bold")
-    axes_e[1].set_xticks(k_list); axes_e[1].set_ylim(bottom=0)
-    axes_e[1].spines["top"].set_visible(False); axes_e[1].spines["right"].set_visible(False)
+        # Silhouette bar
+        bcols_k = [COLOR_ACCENT if k == best_k else COLOR_NEUTRAL for k in k_list]
+        bars_k  = axes_e[1].bar(k_list, sil_scores, color=bcols_k, edgecolor="white", width=0.6)
+        for bar, sc in zip(bars_k, sil_scores):
+            axes_e[1].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.003,
+                           f"{sc:.3f}", ha="center", fontsize=7.5)
+        axes_e[1].set_xlabel("K", fontsize=9); axes_e[1].set_ylabel("Silhouette Score", fontsize=9)
+        axes_e[1].set_title(f"Silhouette Score (K={best_k} terbaik)", fontsize=10, fontweight="bold")
+        axes_e[1].set_xticks(k_list); axes_e[1].set_ylim(bottom=0)
+        axes_e[1].spines["top"].set_visible(False); axes_e[1].spines["right"].set_visible(False)
 
-    plt.tight_layout()
-    st.pyplot(fig_e); plt.close()
+        plt.tight_layout()
+        st.pyplot(fig_e); plt.close()
 
-with col_km2:
-    # Scatter cluster
+    with col_km2:
+        # Scatter cluster
+        cluster_pal = ["#2E86AB", "#E84855", "#3BB273", "#F4A261", "#9B5DE5", "#00BBF9", "#FEE440", "#00F5D4"]
+
+        fig_sc, ax_sc = plt.subplots(figsize=(6, 4))
+        fig_sc.patch.set_facecolor("none"); ax_sc.set_facecolor("none")
+        for cid in sorted(cat_km["cluster"].unique()):
+            grp = cat_km[cat_km["cluster"] == cid]
+            ax_sc.scatter(grp["avg_score"], grp["total_revenue"] / 1e6,
+                          c=cluster_pal[cid], s=np.clip(grp["n_orders"] / 8, 20, 500),
+                          label=f"Cluster {cid+1} (n={len(grp)})", alpha=0.8,
+                          edgecolors="white", linewidths=0.5)
+            for _, row in grp.nlargest(2, "total_revenue").iterrows():
+                ax_sc.annotate(row["product_category"].replace("_", " ")[:14],
+                               xy=(row["avg_score"], row["total_revenue"] / 1e6),
+                               xytext=(3, 3), textcoords="offset points", fontsize=6, color="#333")
+        ax_sc.set_xlabel("Avg Review Score", fontsize=9)
+        ax_sc.set_ylabel("Total Revenue (Juta BRL)", fontsize=9)
+        ax_sc.set_title("Distribusi Cluster: Revenue vs Kepuasan\n(ukuran titik = jumlah order)",
+                        fontsize=9, fontweight="bold")
+        ax_sc.legend(fontsize=7)
+        ax_sc.spines["top"].set_visible(False); ax_sc.spines["right"].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_sc); plt.close()
+
+    # Silhouette plot
     cluster_pal = ["#2E86AB", "#E84855", "#3BB273", "#F4A261", "#9B5DE5", "#00BBF9", "#FEE440", "#00F5D4"]
-
-    fig_sc, ax_sc = plt.subplots(figsize=(6, 4))
-    fig_sc.patch.set_facecolor("none"); ax_sc.set_facecolor("none")
-    for cid in sorted(cat_km["cluster"].unique()):
-        grp = cat_km[cat_km["cluster"] == cid]
-        ax_sc.scatter(grp["avg_score"], grp["total_revenue"] / 1e6,
-                      c=cluster_pal[cid], s=np.clip(grp["n_orders"] / 8, 20, 500),
-                      label=f"Cluster {cid+1} (n={len(grp)})", alpha=0.8,
-                      edgecolors="white", linewidths=0.5)
-        for _, row in grp.nlargest(2, "total_revenue").iterrows():
-            ax_sc.annotate(row["product_category"].replace("_", " ")[:14],
-                           xy=(row["avg_score"], row["total_revenue"] / 1e6),
-                           xytext=(3, 3), textcoords="offset points", fontsize=6, color="#333")
-    ax_sc.set_xlabel("Avg Review Score", fontsize=9)
-    ax_sc.set_ylabel("Total Revenue (Juta BRL)", fontsize=9)
-    ax_sc.set_title("Distribusi Cluster: Revenue vs Kepuasan\n(ukuran titik = jumlah order)",
-                    fontsize=9, fontweight="bold")
-    ax_sc.legend(fontsize=7)
-    ax_sc.spines["top"].set_visible(False); ax_sc.spines["right"].set_visible(False)
+    fig_sil, ax_sil = plt.subplots(figsize=(10, 3.5))
+    fig_sil.patch.set_facecolor("none"); ax_sil.set_facecolor("none")
+    y_lo = 10
+    for cid in range(best_k):
+        sv = np.sort(sil_vals[cat_km["cluster"] == cid])
+        y_hi = y_lo + len(sv)
+        ax_sil.fill_betweenx(np.arange(y_lo, y_hi), 0, sv, facecolor=cluster_pal[cid], alpha=0.8)
+        ax_sil.text(-0.05, y_lo + len(sv) / 2, f"C{cid+1}", fontsize=8)
+        y_lo = y_hi + 10
+    ax_sil.axvline(x=final_sil, color=COLOR_ACCENT, linestyle="--", lw=1.5,
+                   label=f"Avg Silhouette: {final_sil:.3f}")
+    ax_sil.set_xlabel("Silhouette Coefficient", fontsize=9)
+    ax_sil.set_title("Silhouette Plot per Kategori Produk", fontsize=10, fontweight="bold")
+    ax_sil.set_yticks([]); ax_sil.legend(fontsize=8)
+    ax_sil.spines["top"].set_visible(False); ax_sil.spines["right"].set_visible(False)
     plt.tight_layout()
-    st.pyplot(fig_sc); plt.close()
+    st.pyplot(fig_sil); plt.close()
 
-# Silhouette plot
-fig_sil, ax_sil = plt.subplots(figsize=(10, 3.5))
-fig_sil.patch.set_facecolor("none"); ax_sil.set_facecolor("none")
-y_lo = 10
-for cid in range(best_k):
-    sv = np.sort(sil_vals[cat_km["cluster"] == cid])
-    y_hi = y_lo + len(sv)
-    ax_sil.fill_betweenx(np.arange(y_lo, y_hi), 0, sv, facecolor=cluster_pal[cid], alpha=0.8)
-    ax_sil.text(-0.05, y_lo + len(sv) / 2, f"C{cid+1}", fontsize=8)
-    y_lo = y_hi + 10
-ax_sil.axvline(x=final_sil, color=COLOR_ACCENT, linestyle="--", lw=1.5,
-               label=f"Avg Silhouette: {final_sil:.3f}")
-ax_sil.set_xlabel("Silhouette Coefficient", fontsize=9)
-ax_sil.set_title("Silhouette Plot per Kategori Produk", fontsize=10, fontweight="bold")
-ax_sil.set_yticks([]); ax_sil.legend(fontsize=8)
-ax_sil.spines["top"].set_visible(False); ax_sil.spines["right"].set_visible(False)
-plt.tight_layout()
-st.pyplot(fig_sil); plt.close()
+    # Tabel ringkasan cluster
+    clus_table = (
+        cat_km.groupby("cluster_label")
+        .agg(n_kategori=("product_category", "count"),
+             avg_revenue=("total_revenue", "mean"),
+             avg_score=("avg_score", "mean"),
+             avg_orders=("n_orders", "mean"))
+        .round(2).reset_index()
+    )
+    clus_table["avg_revenue"] = clus_table["avg_revenue"].apply(fmt_rev)
+    clus_table.columns = ["Cluster", "Jumlah Kategori", "Avg Revenue", "Avg Score", "Avg Orders"]
+    st.dataframe(clus_table, use_container_width=True, hide_index=True)
 
-# Tabel ringkasan cluster
-clus_table = (
-    cat_km.groupby("cluster_label")
-    .agg(n_kategori=("product_category", "count"),
-         avg_revenue=("total_revenue", "mean"),
-         avg_score=("avg_score", "mean"),
-         avg_orders=("n_orders", "mean"))
-    .round(2).reset_index()
-)
-clus_table["avg_revenue"] = clus_table["avg_revenue"].apply(fmt_rev)
-clus_table.columns = ["Cluster", "Jumlah Kategori", "Avg Revenue", "Avg Score", "Avg Orders"]
-st.dataframe(clus_table, use_container_width=True, hide_index=True)
-
-with st.expander("Lihat Insight K-Means"):
-    st.info(f"""
+    with st.expander("Lihat Insight K-Means"):
+        st.info(f"""
 **Insight K-Means Clustering:**
 - K={best_k} dipilih berdasarkan Silhouette Score tertinggi = **{final_sil:.4f}**
 - Silhouette Score {final_sil:.4f} mengindikasikan struktur clustering yang **{"baik" if final_sil > 0.5 else "cukup" if final_sil > 0.25 else "lemah"}**
 - Pemisahan cluster mencerminkan perbedaan skala bisnis antar kategori produk
 - K-Means lebih objektif dari manual clustering karena mempertimbangkan 5 dimensi fitur secara simultan
-    """)
+        """)
 
 st.divider()
 
@@ -812,82 +791,88 @@ st.subheader("7. Analisis Lanjutan 5: Prediksi Sentimen Ulasan (Random Forest)")
 with st.spinner("Melatih Random Forest model..."):
     model_rf, roc_auc, cv_scores, cm, fpr, tpr, feat_imp, report, y_test, y_prob = compute_rf(df_f)
 
-# Metrik ringkasan
-col_rf0a, col_rf0b, col_rf0c, col_rf0d = st.columns(4)
-col_rf0a.metric("ROC-AUC",          f"{roc_auc:.4f}")
-col_rf0b.metric("CV ROC-AUC",       f"{cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
-col_rf0c.metric("Accuracy",         f"{report['accuracy']:.3f}")
-col_rf0d.metric("Variance CV",      f"{cv_scores.std():.4f}")
+if model_rf is None:
+    st.warning(
+        "Data pada filter ini terlalu sedikit untuk melatih Random Forest "
+        "(minimal 200 sampel diperlukan). Gunakan filter **Semua** negara bagian."
+    )
+else:
+    # Metrik ringkasan
+    col_rf0a, col_rf0b, col_rf0c, col_rf0d = st.columns(4)
+    col_rf0a.metric("ROC-AUC",          f"{roc_auc:.4f}")
+    col_rf0b.metric("CV ROC-AUC",       f"{cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
+    col_rf0c.metric("Accuracy",         f"{report['accuracy']:.3f}")
+    col_rf0d.metric("Variance CV",      f"{cv_scores.std():.4f}")
 
-col_rf1, col_rf2, col_rf3 = st.columns(3)
+    col_rf1, col_rf2, col_rf3 = st.columns(3)
 
-with col_rf1:
-    fig_cm, ax_cm = plt.subplots(figsize=(4.5, 4))
-    fig_cm.patch.set_facecolor("none"); ax_cm.set_facecolor("none")
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Negatif", "Positif"])
-    disp.plot(ax=ax_cm, colorbar=False, cmap="Blues")
-    total = cm.sum()
-    for i in range(2):
-        for j in range(2):
-            ax_cm.text(j, i + 0.32, f"({cm[i,j]/total*100:.1f}%)", ha="center", fontsize=8.5, color="gray")
-    ax_cm.set_title("Confusion Matrix", fontsize=10, fontweight="bold")
-    plt.tight_layout()
-    st.pyplot(fig_cm); plt.close()
+    with col_rf1:
+        fig_cm, ax_cm = plt.subplots(figsize=(4.5, 4))
+        fig_cm.patch.set_facecolor("none"); ax_cm.set_facecolor("none")
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Negatif", "Positif"])
+        disp.plot(ax=ax_cm, colorbar=False, cmap="Blues")
+        total = cm.sum()
+        for i in range(2):
+            for j in range(2):
+                ax_cm.text(j, i + 0.32, f"({cm[i,j]/total*100:.1f}%)", ha="center", fontsize=8.5, color="gray")
+        ax_cm.set_title("Confusion Matrix", fontsize=10, fontweight="bold")
+        plt.tight_layout()
+        st.pyplot(fig_cm); plt.close()
 
-with col_rf2:
-    fig_roc, ax_roc = plt.subplots(figsize=(4.5, 4))
-    fig_roc.patch.set_facecolor("none"); ax_roc.set_facecolor("none")
-    ax_roc.plot(fpr, tpr, color=COLOR_PRIMARY, lw=2.5, label=f"Random Forest (AUC={roc_auc:.3f})")
-    ax_roc.plot([0, 1], [0, 1], color=COLOR_NEUTRAL, linestyle="--", lw=1.5, label="Random (AUC=0.500)")
-    ax_roc.fill_between(fpr, tpr, alpha=0.1, color=COLOR_PRIMARY)
-    ax_roc.set_xlabel("False Positive Rate", fontsize=9)
-    ax_roc.set_ylabel("True Positive Rate", fontsize=9)
-    ax_roc.set_title("ROC Curve", fontsize=10, fontweight="bold")
-    ax_roc.legend(fontsize=7, loc="lower right")
-    ax_roc.set_xlim([0, 1]); ax_roc.set_ylim([0, 1.02])
-    ax_roc.spines["top"].set_visible(False); ax_roc.spines["right"].set_visible(False)
-    plt.tight_layout()
-    st.pyplot(fig_roc); plt.close()
+    with col_rf2:
+        fig_roc, ax_roc = plt.subplots(figsize=(4.5, 4))
+        fig_roc.patch.set_facecolor("none"); ax_roc.set_facecolor("none")
+        ax_roc.plot(fpr, tpr, color=COLOR_PRIMARY, lw=2.5, label=f"Random Forest (AUC={roc_auc:.3f})")
+        ax_roc.plot([0, 1], [0, 1], color=COLOR_NEUTRAL, linestyle="--", lw=1.5, label="Random (AUC=0.500)")
+        ax_roc.fill_between(fpr, tpr, alpha=0.1, color=COLOR_PRIMARY)
+        ax_roc.set_xlabel("False Positive Rate", fontsize=9)
+        ax_roc.set_ylabel("True Positive Rate", fontsize=9)
+        ax_roc.set_title("ROC Curve", fontsize=10, fontweight="bold")
+        ax_roc.legend(fontsize=7, loc="lower right")
+        ax_roc.set_xlim([0, 1]); ax_roc.set_ylim([0, 1.02])
+        ax_roc.spines["top"].set_visible(False); ax_roc.spines["right"].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_roc); plt.close()
 
-with col_rf3:
-    fig_fi, ax_fi = plt.subplots(figsize=(4.5, 4))
-    fig_fi.patch.set_facecolor("none"); ax_fi.set_facecolor("none")
-    fi_cols = [COLOR_ACCENT if i == 0 else COLOR_PRIMARY if i < 3 else COLOR_NEUTRAL
-               for i in range(len(feat_imp))]
-    bars_fi = ax_fi.barh(feat_imp["feature"], feat_imp["importance"],
-                         color=fi_cols, edgecolor="white", height=0.6)
-    for bar, v in zip(bars_fi, feat_imp["importance"]):
-        ax_fi.text(v + 0.001, bar.get_y() + bar.get_height() / 2,
-                   f"{v:.3f}", va="center", fontsize=7)
-    ax_fi.invert_yaxis()
-    ax_fi.set_xlabel("Feature Importance", fontsize=9)
-    ax_fi.set_title("Top 15 Feature Importance", fontsize=10, fontweight="bold")
-    ax_fi.set_xlim(left=0, right=feat_imp["importance"].max() * 1.25)
-    ax_fi.tick_params(axis="y", labelsize=7)
-    ax_fi.yaxis.grid(False)
-    ax_fi.spines["top"].set_visible(False); ax_fi.spines["right"].set_visible(False)
-    plt.tight_layout()
-    st.pyplot(fig_fi); plt.close()
+    with col_rf3:
+        fig_fi, ax_fi = plt.subplots(figsize=(4.5, 4))
+        fig_fi.patch.set_facecolor("none"); ax_fi.set_facecolor("none")
+        fi_cols = [COLOR_ACCENT if i == 0 else COLOR_PRIMARY if i < 3 else COLOR_NEUTRAL
+                   for i in range(len(feat_imp))]
+        bars_fi = ax_fi.barh(feat_imp["feature"], feat_imp["importance"],
+                             color=fi_cols, edgecolor="white", height=0.6)
+        for bar, v in zip(bars_fi, feat_imp["importance"]):
+            ax_fi.text(v + 0.001, bar.get_y() + bar.get_height() / 2,
+                       f"{v:.3f}", va="center", fontsize=7)
+        ax_fi.invert_yaxis()
+        ax_fi.set_xlabel("Feature Importance", fontsize=9)
+        ax_fi.set_title("Top 15 Feature Importance", fontsize=10, fontweight="bold")
+        ax_fi.set_xlim(left=0, right=feat_imp["importance"].max() * 1.25)
+        ax_fi.tick_params(axis="y", labelsize=7)
+        ax_fi.yaxis.grid(False)
+        ax_fi.spines["top"].set_visible(False); ax_fi.spines["right"].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_fi); plt.close()
 
-# Classification report table
-st.markdown("**Classification Report**")
-cr_df = pd.DataFrame(report).T.round(3)
-cr_df = cr_df[["precision", "recall", "f1-score", "support"]].iloc[:4]
-st.dataframe(cr_df, use_container_width=True)
+    # Classification report table
+    st.markdown("**Classification Report**")
+    cr_df = pd.DataFrame(report).T.round(3)
+    cr_df = cr_df[["precision", "recall", "f1-score", "support"]].iloc[:4]
+    st.dataframe(cr_df, use_container_width=True)
 
-with st.expander("Lihat Insight Random Forest"):
-    cv_std = cv_scores.std()
-    if cv_std < 0.01:     stab = "sangat stabil — variance sangat rendah, tidak ada indikasi overfitting"
-    elif cv_std < 0.03:   stab = "cukup stabil — variance dalam batas wajar"
-    else:                 stab = "kurang stabil — pertimbangkan regularisasi lebih ketat"
-    st.info(f"""
+    with st.expander("Lihat Insight Random Forest"):
+        cv_std = cv_scores.std()
+        if cv_std < 0.01:     stab = "sangat stabil — variance sangat rendah, tidak ada indikasi overfitting"
+        elif cv_std < 0.03:   stab = "cukup stabil — variance dalam batas wajar"
+        else:                 stab = "kurang stabil — pertimbangkan regularisasi lebih ketat"
+        st.info(f"""
 **Insight Random Forest:**
 - ROC-AUC = **{roc_auc:.4f}** — di atas random classifier (0.5), kategori **{"baik" if roc_auc > 0.75 else "cukup" if roc_auc > 0.6 else "lemah"}**
 - CV ROC-AUC = {cv_scores.mean():.4f} (variance {cv_std:.4f}) → model **{stab}**
 - Precision kelas negatif rendah karena imbalance kelas (78.9% positif vs 21.1% negatif)
 - Feature terpenting: `{feat_imp.iloc[0]['feature']}` — faktor utama penentu sentimen ulasan
 - **Implikasi bisnis**: model dapat digunakan sebagai early warning system untuk order berisiko ulasan negatif
-    """)
+        """)
 
 st.divider()
 
