@@ -1,7 +1,6 @@
 """
 Dashboard Analisis E-Commerce Olist
-Proyek Data Science
-Oleh  : Chamid Bahrul Ulum
+Nama  : Chamid Bahrul Ulum
 Email : ulumlab@gmail.com
 
 Cara menjalankan:
@@ -53,7 +52,7 @@ warnings.filterwarnings("ignore")
 # ============================================================
 st.set_page_config(
     page_title="Olist Data Science Dashboard",
-    page_icon="📊",
+    page_icon=":bar_chart:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -300,23 +299,58 @@ with st.sidebar:
 
     st.divider()
 
-    # Navigasi section — anchor links ke setiap section
-    # Streamlit otomatis membuat anchor dari teks heading (lowercase, spasi -> -)
+    # Navigasi section — styled anchor links
     st.subheader("Navigasi")
-    nav_links = [
-        ("1. Ringkasan Performa",          "#1-ringkasan-performa-bisnis"),
-        ("2. Revenue & Kategori",           "#2-pertanyaan-1-tren-revenue-dan-kategori-produk-teratas"),
-        ("3. Kepuasan Pelanggan",           "#3-pertanyaan-2-kepuasan-pelanggan-per-kategori-produk"),
-        ("4. RFM Segmentasi",               "#4-analisis-lanjutan-1-rfm-segmentasi-pelanggan"),
-        ("5. Geospatial",                   "#5-analisis-lanjutan-2-geospatial-distribusi-order-di-brazil"),
-        ("6. K-Means Clustering",           "#6-analisis-lanjutan-4-k-means-clustering-kategori-produk"),
-        ("7. Random Forest",                "#7-analisis-lanjutan-5-prediksi-sentimen-ulasan-random-forest"),
-        ("8. Time Series",                  "#8-analisis-lanjutan-6-time-series-decomposition-revenue"),
-        ("9. Korelasi & Feature Importance","#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
-        ("10. Kesimpulan",                  "#10-kesimpulan-dan-rekomendasi"),
+    nav_items = [
+        ("01", "Ringkasan Performa",           "#1-ringkasan-performa-bisnis"),
+        ("02", "Revenue & Kategori",            "#2-pertanyaan-1-tren-revenue-dan-kategori-produk-teratas"),
+        ("03", "Kepuasan Pelanggan",            "#3-pertanyaan-2-kepuasan-pelanggan-per-kategori-produk"),
+        ("04", "RFM Segmentasi",                "#4-analisis-lanjutan-1-rfm-segmentasi-pelanggan"),
+        ("05", "Geospatial",                    "#5-analisis-lanjutan-2-geospatial-distribusi-order-di-brazil"),
+        ("06", "K-Means Clustering",            "#6-analisis-lanjutan-4-k-means-clustering-kategori-produk"),
+        ("07", "Random Forest",                 "#7-analisis-lanjutan-5-prediksi-sentimen-ulasan-random-forest"),
+        ("08", "Time Series",                   "#8-analisis-lanjutan-6-time-series-decomposition-revenue"),
+        ("09", "Korelasi & Feature Importance", "#9-analisis-lanjutan-7-analisis-korelasi-feature-importance"),
+        ("10", "Kesimpulan & Rekomendasi",      "#10-kesimpulan-dan-rekomendasi"),
     ]
-    for label, anchor in nav_links:
-        st.markdown(f"• [{label}]({anchor})")
+    nav_html = """
+    <style>
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 8px;
+        margin: 2px 0;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 12.5px;
+        color: inherit;
+        transition: background 0.15s;
+        border-left: 3px solid transparent;
+    }
+    .nav-item:hover {
+        background: rgba(46, 134, 171, 0.10);
+        border-left: 3px solid #2E86AB;
+        color: #2E86AB;
+        text-decoration: none;
+    }
+    .nav-num {
+        font-size: 10px;
+        font-weight: 600;
+        color: #2E86AB;
+        background: rgba(46, 134, 171, 0.12);
+        border-radius: 4px;
+        padding: 1px 5px;
+        min-width: 22px;
+        text-align: center;
+        flex-shrink: 0;
+        letter-spacing: 0.02em;
+    }
+    </style>
+    """
+    for num, label, anchor in nav_items:
+        nav_html += f'<a class="nav-item" href="{anchor}"><span class="nav-num">{num}</span>{label}</a>\n'
+    st.markdown(nav_html, unsafe_allow_html=True)
 
     st.divider()
     st.caption("Chamid Bahrul Ulum")
