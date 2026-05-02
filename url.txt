@@ -1,1 +1,1 @@
-Coming soon — will be updated after Streamlit Cloud deployment.
+https://ulumlab-olist-dashboard.streamlit.app
